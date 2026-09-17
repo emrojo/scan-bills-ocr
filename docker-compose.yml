@@ -60,7 +60,7 @@ services:
 
 networks:
   proxy-network:
-    name: proxy-network
+    external: true
 
 volumes:
   ollama_data:
