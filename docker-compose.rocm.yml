@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # ScanBills OCR - AMD Radeon / Instinct GPU Deployment (ROCm)
 # For servers with AMD GPUs on Linux
 # ==============================================================================
@@ -43,6 +43,7 @@ services:
 
   # ScanBills FastAPI Web Service & UI (bound to 127.0.0.1:8030)
   web:
+    image: ghcr.io/emrojo/scan-bills-ocr:latest
     build: .
     container_name: scanbills-web-rocm
     ports:

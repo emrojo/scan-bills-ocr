@@ -1,4 +1,4 @@
-﻿services:
+services:
   # Ollama LLM / VLM inference engine (internal only, no host port exposed)
   ollama:
     image: ollama/ollama:latest
@@ -43,6 +43,7 @@
 
   # ScanBills FastAPI Web Service & UI (bound to 127.0.0.1:8030)
   web:
+    image: ghcr.io/emrojo/scan-bills-ocr:latest
     build: .
     container_name: scanbills-web
     ports:
