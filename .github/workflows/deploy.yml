@@ -16,3 +16,4 @@ jobs:
     with:
       deploy_mode: 'compose'
       deploy_path: '/home/deploy/apps/scan-bills'
+      compose_file: docker-compose.cpu.yml
