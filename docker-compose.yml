@@ -1,0 +1,66 @@
+﻿services:
+  # Ollama LLM / VLM inference engine (internal only, no host port exposed)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: scanbills-ollama
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - proxy-network
+    restart: unless-stopped
+    # GPU Acceleration via NVIDIA Container Toolkit
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Autonomous one-time model downloader
+  model-puller:
+    image: ollama/ollama:latest
+    container_name: scanbills-model-puller
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    networks:
+      - proxy-network
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama service to become ready...';
+        until ollama list > /dev/null 2>&1; do
+          sleep 2;
+        done;
+        echo 'Ollama is ready. Pulling VLM model: ${OLLAMA_MODEL:-qwen2.5vl:7b}...';
+        ollama pull ${OLLAMA_MODEL:-qwen2.5vl:7b};
+        echo 'Model pull complete. Service is fully autonomous.';
+      "
+    restart: "no"
+
+  # ScanBills FastAPI Web Service & UI (bound to 127.0.0.1:8030)
+  web:
+    build: .
+    container_name: scanbills-web
+    ports:
+      - "127.0.0.1:${PORT:-8030}:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5vl:7b}
+      - TIMEOUT_SECONDS=300
+    depends_on:
+      - ollama
+    networks:
+      - proxy-network
+    restart: unless-stopped
+
+networks:
+  proxy-network:
+    name: proxy-network
+
+volumes:
+  ollama_data:
+    name: scanbills_ollama_data

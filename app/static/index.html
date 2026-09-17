@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScanBills OCR - Autonomous Document Extraction & PII Redaction</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">⚡</span>
+        <div>
+          <h1>ScanBills OCR</h1>
+          <p class="subtitle">Autonomous Semantic OCR & Privacy PII Redaction Powered by Local VLMs</p>
+        </div>
+      </div>
+      <div class="status-badge" id="system-status">
+        <span class="status-dot"></span>
+        <span id="status-text">Checking engine...</span>
+      </div>
+    </header>
+
+    <main class="main-grid">
+      <!-- Left Panel: Document Input & Options -->
+      <section class="card input-card">
+        <h2>1. Document to Process</h2>
+        
+        <!-- Native dropzone label -->
+        <label for="file-input" class="drop-zone" id="drop-zone">
+          <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp,.bmp,.pdf,image/*,application/pdf">
+          
+          <div class="drop-content" id="drop-content">
+            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+            </svg>
+            <p class="drop-text">Drag & drop your invoice or receipt here (PDF, PNG, JPG)</p>
+            <p class="drop-subtext">or paste screenshot with <kbd>Ctrl + V</kbd></p>
+            <span class="btn-browse-fake">📁 Choose File</span>
+          </div>
+
+          <div class="preview-container" id="preview-container" style="display: none;">
+            <img id="image-preview" src="" alt="Document Preview">
+            <div id="pdf-preview-info" style="display: none;">
+              <span class="pdf-icon">📄</span>
+              <span id="pdf-name">document.pdf</span>
+            </div>
+            <button type="button" class="btn-remove" id="btn-remove-file" title="Remove file">✕</button>
+          </div>
+        </label>
+
+        <div class="file-loaded-info" id="file-loaded-info" style="display: none;">
+          <span class="file-icon-badge">✓</span>
+          <span class="file-name-text" id="file-loaded-name">invoice.pdf</span>
+          <span class="file-size-text" id="file-loaded-size">(120 KB)</span>
+        </div>
+
+        <div class="config-section">
+          <!-- PII Privacy Redaction Option -->
+          <div class="privacy-box">
+            <div class="privacy-header">
+              <div class="privacy-title">
+                <span class="shield-icon">🛡️</span>
+                <label for="redact-pii-toggle"><strong>Redact Personal Data (PII)</strong></label>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="redact-pii-toggle">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="privacy-options" id="privacy-options" style="display: none;">
+              <p class="privacy-desc">Blacks out customer names, DNI/NIE, addresses, phones, emails, & bank IBANs.</p>
+              <div class="form-group style-group">
+                <label for="redaction-style-select">Censorship Style:</label>
+                <select id="redaction-style-select">
+                  <option value="blackout">Blackout (Solid Black Rectangle - GDPR)</option>
+                  <option value="blur">Blur (Gaussian Blur Filter)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="model-select">Multimodal Vision Model:</label>
+            <select id="model-select">
+              <option value="qwen2.5vl:7b">Qwen2.5-VL 7B (Recommended - Maximum Precision)</option>
+              <option value="qwen2.5vl:3b">Qwen2.5-VL 3B (Ultra Fast)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <div class="label-row">
+              <label for="prompt-input">Extraction Prompt (Gemini-Style):</label>
+              <div class="prompt-presets">
+                <button type="button" class="preset-btn active" data-preset="invoice">Standard Invoice</button>
+                <button type="button" class="preset-btn" data-preset="receipt">Store Receipt</button>
+                <button type="button" class="preset-btn" data-preset="custom">Custom</button>
+              </div>
+            </div>
+            <textarea id="prompt-input" rows="5" placeholder="Enter extraction prompt..."></textarea>
+          </div>
+
+          <button id="btn-scan" class="btn-primary" disabled>
+            <span class="btn-text">Scan Document</span>
+            <span class="spinner" style="display: none;"></span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right Panel: Results & Redacted Image -->
+      <section class="card output-card">
+        <div class="output-header">
+          <div class="tabs-nav">
+            <button class="tab-btn active" data-tab="json">JSON Data</button>
+            <button class="tab-btn" data-tab="redacted" id="tab-btn-redacted" style="display: none;">
+              🛡️ Redacted Document
+            </button>
+          </div>
+          <div class="output-actions">
+            <span class="metric-tag" id="time-tag" style="display: none;">⏱ 0.0s</span>
+            <button id="btn-copy" class="btn-secondary" title="Copy JSON" disabled>📋 Copy</button>
+            <button id="btn-download" class="btn-secondary" title="Download JSON" disabled>💾 JSON</button>
+            <button id="btn-download-redacted" class="btn-secondary" title="Download Redacted Document" style="display: none;">
+              ⬇️ Save Redacted
+            </button>
+          </div>
+        </div>
+
+        <div class="result-box">
+          <div class="empty-state" id="empty-state">
+            <div class="empty-illustration">📄 ➔ { }</div>
+            <p>Upload a document and click "Scan Document" to view structured extraction and censorship.</p>
+          </div>
+
+          <div class="loading-state" id="loading-state" style="display: none;">
+            <div class="pulse-loader"></div>
+            <p id="loading-message">VLM is analyzing document structure & personal entities...</p>
+            <span class="timer-display" id="active-timer">0s</span>
+          </div>
+
+          <!-- Tab 1: JSON Result -->
+          <pre id="json-result" class="json-code" style="display: none;"><code></code></pre>
+
+          <!-- Tab 2: Redacted Image Preview -->
+          <div id="redacted-result" class="redacted-view" style="display: none;">
+            <div class="redacted-preview-header">
+              <span class="redacted-badge">🔒 PII Censored</span>
+              <span class="redacted-meta" id="redacted-meta">0 sensitive elements redacted</span>
+            </div>
+            <div class="redacted-img-container">
+              <img id="redacted-image-preview" src="" alt="Redacted Document Preview">
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>ScanBills OCR • 100% Autonomous & Cost-Free • Docker Ready • GPU & CPU Compatible</p>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

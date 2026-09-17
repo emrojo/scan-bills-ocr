@@ -1,0 +1,66 @@
+﻿# ==============================================================================
+# ScanBills OCR - AMD Radeon / Instinct GPU Deployment (ROCm)
+# For servers with AMD GPUs on Linux
+# ==============================================================================
+
+services:
+  # Ollama with AMD ROCm driver support (internal only, no host port exposed)
+  ollama:
+    image: ollama/ollama:rocm
+    container_name: scanbills-ollama-rocm
+    devices:
+      - "/dev/kfd"
+      - "/dev/dri"
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - proxy-network
+    restart: unless-stopped
+
+  # Autonomous one-time model downloader
+  model-puller:
+    image: ollama/ollama:rocm
+    container_name: scanbills-model-puller-rocm
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    networks:
+      - proxy-network
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama ROCm service...';
+        until ollama list > /dev/null 2>&1; do
+          sleep 2;
+        done;
+        echo 'Pulling VLM model: ${OLLAMA_MODEL:-qwen2.5vl:7b}...';
+        ollama pull ${OLLAMA_MODEL:-qwen2.5vl:7b};
+        echo 'Model pull complete.';
+      "
+    restart: "no"
+
+  # ScanBills FastAPI Web Service & UI (bound to 127.0.0.1:8030)
+  web:
+    build: .
+    container_name: scanbills-web-rocm
+    ports:
+      - "127.0.0.1:${PORT:-8030}:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5vl:7b}
+      - TIMEOUT_SECONDS=300
+    depends_on:
+      - ollama
+    networks:
+      - proxy-network
+    restart: unless-stopped
+
+networks:
+  proxy-network:
+    name: proxy-network
+
+volumes:
+  ollama_data:
+    name: scanbills_ollama_data

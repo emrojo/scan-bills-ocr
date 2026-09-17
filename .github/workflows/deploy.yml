@@ -1,0 +1,18 @@
+name: Deploy Application
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    # Replace 'YOUR_ORG_OR_USERNAME' with your GitHub organization or username
+    uses: emrojo/pachas-devops/.github/workflows/docker-build-deploy.yml@main
+    secrets: inherit
+    with:
+      deploy_mode: 'compose'
+      deploy_path: '/home/deploy/apps/scan-bills'
